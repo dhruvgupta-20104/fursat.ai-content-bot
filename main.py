@@ -48,7 +48,7 @@ async def process_channel_endpoint(request: Request, background_tasks: Backgroun
     task_id = str(uuid.uuid4())
     task_results[task_id] = {"status": "processing"}
     background_tasks.add_task(process_channel, channel_url, task_results, task_id)
-    return {"message": "Processing started"}
+    return {"task_id": task_id, "message": "Processing started"}
 
 @app.get("/task_status/{task_id}")
 async def task_status_endpoint(task_id: str):
