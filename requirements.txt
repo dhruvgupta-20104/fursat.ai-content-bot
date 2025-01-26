@@ -2,9 +2,7 @@ pytube==15.0.0
 moviepy==1.0.3
 openai-whisper==20231117
 instabot==0.117.0
-python-dotenv==1.0.0
 ffmpeg-python==0.2.0
-numpy==1.24.3
 librosa
 
 python-dotenv==1.0.0
