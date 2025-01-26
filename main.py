@@ -1,45 +1,64 @@
-import os
+# main.py
 
-from Bot.ContentBot.yt_processor import fetch_top_videos, download_video
-from Bot.ContentBot.clip_engine import ClipGenerator
-from Bot.ContentBot.caption_engine import add_captions
-from Bot.ContentBot.formatter import format_for_reels
-from Bot.ContentBot.ig_uploader import InstagramManager
+from typing import Dict
+import uuid
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
+from fastapi.middleware.cors import CORSMiddleware
+import logging 
+import uvicorn
 
-def process_channel(channel_url: str):
-    """Full processing pipeline"""
-    # Setup directories
-    os.makedirs("raw_videos", exist_ok=True)
-    os.makedirs("processed", exist_ok=True)
-    os.makedirs("output", exist_ok=True)
+from Bot.main import process_channel
 
-    # Fetch and process videos
-    videos = fetch_top_videos(channel_url)
-    ig = InstagramManager()
+task_results: Dict[str, Dict] = {}
 
-    for vid in videos:
-        try:
-            # Download source video
-            local_path = download_video(vid.watch_url)
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s -    %(message)s',
+    filename='logs/fursat_ai.log'
+)
+logger = logging.getLogger(__name__)
 
-            # Generate clips
-            clip_gen = ClipGenerator(local_path)
-            clips = clip_gen.generate_clips()
-            
-            # Process each clip
-            for idx, clip in enumerate(clips):
-                processed = format_for_reels(add_captions(clip))
-                output_path = f"output/reel_{vid.video_id}_{idx}.mp4"
-                processed.write_videofile(
-                    output_path,
-                    codec="libx264",
-                    audio_codec="aac",
-                    threads=4,
-                    logger=None
-                )
+# Initialize FastAPI app
+app = FastAPI(
+    title="Content Bot",
+    description="API for managing travel content",
+    version="1.0.0"
+)
 
-                # Upload to Instagram
-                ig.upload_reel(output_path, f"Live performance @{channel_url.split('/')[-1]}")
+# CORS configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-        except Exception as e:
-            print(f"Failed processing {vid.title}: {str(e)}")
+@app.post("/process_channel")
+async def process_channel_endpoint(request: Request, background_tasks: BackgroundTasks, response_model=None):
+    """Process a YouTube channel"""
+    data = await request.json()
+    channel_url = data.get("channel_url")
+    if not channel_url:
+        raise HTTPException(status_code=400, detail="Missing channel_url in request body")
+    
+    # Process channel in background
+    task_id = str(uuid.uuid4())
+    task_results[task_id] = {"status": "processing"}
+    background_tasks.add_task(process_channel, channel_url, task_results, task_id)
+    return {"message": "Processing started"}
+
+@app.get("/task_status/{task_id}")
+async def task_status_endpoint(task_id: str):
+    """Get task status"""
+    if task_id not in task_results:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    return task_results[task_id]
+
+if __name__ == "__main__":
+    # Load environment variables
+    load_dotenv()
+    uvicorn.run(app, host="0.0.0.0", port=8000)
