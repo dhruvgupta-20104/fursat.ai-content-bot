@@ -1,5 +1,6 @@
 # main.py
 
+from datetime import datetime
 from typing import Dict
 import uuid
 from dotenv import load_dotenv
@@ -57,6 +58,17 @@ async def task_status_endpoint(task_id: str):
         raise HTTPException(status_code=404, detail="Task not found")
     
     return task_results[task_id]
+
+@app.get("/health")
+async def health_check():
+    """
+    Health check endpoint
+    """
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow(),
+        "version": "1.0.0"
+    }
 
 if __name__ == "__main__":
     # Load environment variables
