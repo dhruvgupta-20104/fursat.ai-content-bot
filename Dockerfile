@@ -9,8 +9,8 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Install reddis
-RUN pip install --no-cache-dir redis
+# # Install reddis
+# RUN pip install --no-cache-dir redis
 
 # Copy requirements and install dependencies
 COPY requirements.txt .
